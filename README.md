@@ -1,68 +1,116 @@
-# QML-IDS: Môi trường Docker Bất Tử cho Nghiên cứu Quantum Machine Learning
+# QML-IDS: Hybrid Quantum-Classical LSTM for Network Intrusion Detection
 
-Dự án này cung cấp một môi trường Docker đã được cấu hình sẵn, ổn định và có thể tái lập 100% cho các nghiên cứu về Quantum Machine Learning (QML), đặc biệt là các mô hình lai (Hybrid Quantum-Classical) sử dụng PyTorch và PennyLane.
+This repository contains the official source code and a fully reproducible Docker environment for the research paper exploring a hybrid Quantum-Classical model for Network Intrusion Detection.
 
-Môi trường này được thiết kế để giải quyết "cơn ác mộng cài đặt" thường gặp khi làm việc với các thư viện tính toán hiệu năng cao, đảm bảo rằng bạn có thể bắt đầu nghiên cứu ngay lập tức.
+The project investigates the application of Quantum Machine Learning (QML) to improve the detection of malicious network traffic by augmenting a classical Long Short-Term Memory (LSTM) network with a Parameterized Quantum Circuit (PQC). Our findings show that while a classical LSTM baseline achieves a higher overall F1-Score, the hybrid QLSTM model consistently demonstrates superior **precision**, suggesting its potential for building high-fidelity IDS with fewer false alarms.
 
-## ✨ Kiến trúc Môi trường
+[![Docker Pulls](https://img.shields.io/docker/pulls/haodpsut/qml-ids.svg)](https://hub.docker.com/r/haodpsut/qml-ids)
 
-Môi trường này được tối ưu hóa cho các bài toán thực tế, áp dụng kiến trúc hybrid:
+## 🔬 Reproducible Research Environment
 
-*   **PyTorch (trên GPU):** Tận dụng toàn bộ sức mạnh của GPU NVIDIA thông qua CUDA để tăng tốc các phần tính toán cổ điển (chiếm >95% khối lượng công việc), như các lớp mạng nơ-ron sâu.
-*   **PennyLane (trên CPU):** Sử dụng trình mô phỏng `default.qubit` an toàn và ổn định. Điều này đảm bảo khả năng tương thích tối đa và tránh các lỗi cấp thấp (`Illegal instruction`), trong khi vẫn đủ nhanh để mô phỏng các mạch lượng tử có kích thước phù hợp cho nghiên cứu (4-16 qubits).
+To guarantee 100% reproducibility and bypass the infamous "dependency hell," the entire experimental environment is encapsulated within a Docker image. This image contains a complete, pre-configured toolchain with GPU support for PyTorch and a stable CPU-based quantum simulation backend with PennyLane.
 
-## 🚀 Hướng dẫn sử dụng nhanh (Quick Start)
+### Prerequisites
 
-**Yêu cầu:**
-*   Hệ điều hành Linux
-*   Docker Engine
-*   GPU NVIDIA
-*   NVIDIA Driver tương thích
-*   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)
+*   A Linux-based host machine.
+*   [Docker Engine](https://docs.docker.com/engine/install/).
+*   An NVIDIA GPU with compatible drivers.
+*   [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html).
+*   A Kaggle account and API token (`kaggle.json`).
 
-**Các bước thực hiện:**
+## 🚀 Quick Start: Full Experiment Replication
 
-1.  **Kéo (Pull) Image từ Docker Hub:**
+Follow these steps to set up the environment, download the data, and run all experiments.
+
+### Step 1: Set Up the Environment
+
+Clone the repository and pull the pre-built Docker image.
+
+```bash
+# Clone this repository
+git clone https://github.com/ailabteam/qml-ids.git
+cd qml-ids
+
+# Pull the stable Docker image from Docker Hub
+docker pull haodpsut/qml-ids:latest
+```
+*(Note: The current stable version is `1.1` or higher.)*
+
+### Step 2: Download the Dataset
+
+This project uses the CIC-IDS2017 dataset. We will use the Kaggle API to download it.
+
+1.  **Get your Kaggle API Token:**
+    *   Log into your Kaggle account.
+    *   Go to `Settings -> API` and click `Create New Token`. This will download a `kaggle.json` file.
+
+2.  **Place the token and download data:**
+    *   Create a `./.kaggle` directory in the project root.
+    *   Place your `kaggle.json` file inside it.
+    *   Run the download script (this uses a temporary `tools` conda environment to avoid polluting the system):
     ```bash
-    docker pull haodpsut/qml-ids:1.0
+    # Create a temporary environment to download data
+    conda create -n tools python=3.10 kaggle -c conda-forge -y
+    conda activate tools
+    
+    # Run download (using the dataset version that provides 8 separate files)
+    kaggle datasets download -d cicids2017/cicids2017-dataset -p ./data --unzip
+    
+    # Move files to the root data directory
+    mv ./data/MachineLearningCSV/MachineLearningCVE/*.csv ./data/
+    rm -r ./data/MachineLearningCSV
+    
+    # Deactivate and remove the temporary environment
+    conda deactivate
+    conda env remove -n tools
     ```
+    Your `./data` directory should now contain 8 `.csv` files.
 
-2.  **Chạy (Run) Container:**
-    Di chuyển đến thư mục dự án trên máy của bạn và chạy lệnh sau:
-    ```bash
-    # Lệnh này sẽ khởi động container, cấp quyền truy cập GPU,
-    # và mount thư mục hiện tại của bạn vào /app bên trong container.
-    docker run --rm -it --gpus all -v $(pwd):/app haodpsut/qml-ids:1.0
-    ```
-    Sau khi chạy, bạn sẽ ở bên trong shell của container với môi trường đã được tự động kích hoạt. Dấu nhắc lệnh sẽ có dạng `(/opt/env) root@...:/app#`.
+### Step 3: Run the Experiments
 
-3.  **Xác minh Môi trường:**
-    Để chắc chắn mọi thứ hoạt động, hãy chạy script kiểm tra:
-    ```bash
-    python check_env.py
-    ```
-    Bạn sẽ thấy thông báo `🎉 SUCCESS!` ở cuối cùng. Môi trường của bạn đã sẵn sàng!
+Start the Docker container. This command mounts your local project directory into the container's `/app` workspace.
 
-## ❤️ Hành trình Xây dựng Môi trường: Các Bài học Xương máu
+```bash
+docker run --rm -it --gpus all -v $(pwd):/app haodpsut/qml-ids:latest
+```
 
-Việc tạo ra môi trường này là một quá trình gỡ lỗi đầy thử thách. Phần này ghi lại các vấn đề cốt lõi đã gặp phải và cách chúng được giải quyết, hy vọng sẽ giúp ích cho những người đi sau.
+Once inside the container's shell (`(/opt/env) root@...:/app#`), run the scripts in order:
 
-#### Vấn đề 1: Lỗi `Illegal instruction (core dumped)`
-*   **Triệu chứng:** Chương trình crash ngay khi gọi đến các hàm của `pennylane-lightning`.
-*   **Nguyên nhân gốc:** Các thư viện hiệu năng cao (`pennylane-lightning`, `cuQuantum`) thường được biên dịch sẵn với các tập lệnh CPU hiện đại (AVX, AVX2) để tối ưu hóa tốc độ. Tuy nhiên, nếu CPU của server không hỗ trợ các tập lệnh này, nó sẽ không hiểu và gây ra lỗi. Docker ảo hóa môi trường phần mềm, **nhưng không ảo hóa CPU**, do đó lỗi này vẫn xảy ra.
-*   **Bài học:** Phải biên dịch lại thư viện từ mã nguồn trên chính máy đích và ra lệnh tường minh cho trình biên dịch **tắt các tập lệnh AVX** (`-DENABLE_AVX=OFF`).
+```bash
+# 1. Exploratory Data Analysis and Preprocessing
+python 01_eda.py
+python 02_preprocessing.py
 
-#### Vấn đề 2: "Dependency Hell" khi Biên dịch từ Source
-*   **Triệu chứng:** Quá trình build từ source liên tục thất bại với các lỗi khó hiểu.
-*   **Nguyên nhân gốc:** Việc build một thư viện C++/CUDA phức tạp đòi hỏi một chuỗi công cụ hoàn chỉnh:
-    1.  **Đúng trình biên dịch C++:** Chúng tôi phát hiện ra `g++ 12` là phiên bản ổn định nhất, không quá cũ cũng không quá mới.
-    2.  **Đầy đủ Headers:** Cần có `python-dev` để C++ có thể "nói chuyện" với Python.
-    3.  **Toàn bộ CUDA Toolkit:** Cần có `nvcc` để biên dịch mã CUDA, chứ không chỉ `CUDA runtime` để chạy.
-    4.  **Các SDK phụ trợ:** `pennylane-lightning-gpu` bắt buộc phải "thấy" `cuQuantum SDK` trong quá trình build, ngay cả khi chúng ta không muốn dùng nó.
-*   **Bài học:** Việc cố gắng "chắp vá" một môi trường runtime bằng cách cài thêm các công cụ build là không ổn định. Cách tiếp cận đúng là bắt đầu từ một môi trường `devel` hoàn chỉnh, hoặc kiểm soát chặt chẽ từng dependency như chúng tôi đã làm.
+# 2. Train and evaluate the models
+python 03_train_qlstm.py
+python 04_train_lstm_baseline.py
 
-#### Giải pháp cuối cùng: Sự ổn định là trên hết
-*   Sau nhiều nỗ lực, chúng tôi phát hiện ra rằng ngay cả khi build thành công, thư viện `cuQuantum` của NVIDIA vẫn chứa mã AVX.
-*   **Quyết định cuối cùng:** Chúng tôi đã chọn giải pháp thực dụng và ổn định nhất: sử dụng trình mô phỏng `default.qubit` an toàn của PennyLane (chạy trên CPU) và để PyTorch tận dụng GPU cho phần việc nặng nhất.
-*   **Đóng gói bằng `conda-pack`:** Thay vì lặp lại quá trình build đầy rủi ro trong Dockerfile, chúng tôi đã tạo một môi trường Conda hoàn hảo trên host, sau đó dùng `conda-pack` để đóng gói **chính xác trạng thái đã hoạt động** đó vào một file tarball, rồi giải nén nó trong Docker. Đây là phương pháp đảm bảo tính tái lập 100%.
+# 3. (Optional) Run hyperparameter experiments
+python 03a_train_qlstm_h64.py
+python 03b_train_qlstm_q8.py
 
+# 4. Generate the final comparison plot
+python 05_plot_results.py
+```
+All results, including cleaned data, trained models, and figures, will be saved in the `./output` directory on your host machine.
+
+## ❤️ The Journey: A Guide to Overcoming Installation Hell
+
+Building this stable environment was a formidable challenge. This section documents the painful lessons learned, hoping to save others from the same struggle.
+
+1.  **The `Illegal Instruction` Nightmare:**
+    *   **Problem:** Our initial attempts using high-performance simulators (`pennylane-lightning`) consistently crashed with `Illegal instruction (core dumped)`.
+    *   **Root Cause:** Pre-compiled Python wheels (`.whl`) on PyPI and even libraries from NVIDIA's Conda channel (`cuQuantum`) were built with modern CPU instruction sets (AVX/AVX2). Our server's CPU did not support them. Docker virtualizes the OS, **but not the CPU architecture**.
+    *   **Lesson:** For high-performance computing, you cannot trust pre-compiled binaries blindly. We attempted to recompile `pennylane-lightning` from source, explicitly disabling AVX flags, but the dependency on the pre-compiled `cuQuantum` library made this a dead end.
+
+2.  **The Build Dependency Maze:**
+    *   **Problem:** Compiling from source failed repeatedly due to missing tools.
+    *   **Root Cause:** The build process required a specific toolchain: a compatible C++ compiler (`g++ 12` was the sweet spot), `cmake`, `python-dev` headers, and the full CUDA Toolkit (`nvcc`), not just the runtime.
+    *   **Lesson:** A `runtime` environment is not a `development` environment. Building complex C++/CUDA extensions requires a complete development toolchain.
+
+3.  **The Ultimate Solution: Stability over Speed:**
+    *   **Problem:** The high-performance GPU simulator (`lightning.gpu`) was unattainable due to the CPU-incompatible `cuQuantum` dependency.
+    *   **Final Decision:** We pivoted to a pragmatic and robust hybrid architecture: **PyTorch on GPU** for the heavy classical computations (LSTM layers) and **PennyLane on CPU** using the universal `default.qubit` simulator. This simulator is written in Python/NumPy and has no low-level hardware dependencies, guaranteeing it will run anywhere.
+    *   **Packaging with `conda-pack`:** Instead of replicating the complex installation in a Dockerfile, we created a perfect Conda environment on the host, then used `conda-pack` to archive it. The Dockerfile simply unpacks this guaranteed-to-work environment, leading to a fast, reliable, and 100% reproducible build.
+
+This journey highlights a critical principle in computational science: **reproducibility and stability are paramount.**
